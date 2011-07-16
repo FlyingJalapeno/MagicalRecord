@@ -93,21 +93,41 @@ static NSString const * kActiveRecordManagedObjectContextKey = @"ActiveRecord_NS
 
 - (void) mergeChangesFromNotification:(NSNotification *)notification
 {
-	ARLog(@"Merging changes to %@context%@", 
-          self == [NSManagedObjectContext defaultContext] ? @"*** DEFAULT *** " : @"",
-          ([NSThread isMainThread] ? @" *** on Main Thread ***" : @""));
-	[self mergeChangesFromContextDidSaveNotification:notification];
+    
+    @try {
+        
+        ARLog(@"Merging changes to %@context%@", 
+              self == [NSManagedObjectContext defaultContext] ? @"*** DEFAULT *** " : @"",
+              ([NSThread isMainThread] ? @" *** on Main Thread ***" : @""));
+        [self mergeChangesFromContextDidSaveNotification:notification];
+        
+    }
+    
+    @catch (NSException *exception) {
+        
+        ARLog(@"Problem merging: %@", (id)[exception userInfo] ?: (id)[exception reason]);
+        
+    }
+	
 }
 
 - (void) mergeChangesOnMainThread:(NSNotification *)notification
 {
 	if ([NSThread isMainThread])
 	{
-	  [self mergeChangesFromNotification:notification];
+        
+        [self mergeChangesFromNotification:notification];
+       
 	}
 	else
 	{
-	  [self performSelectorOnMainThread:@selector(mergeChangesFromNotification:) withObject:notification waitUntilDone:YES];
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            
+            [self mergeChangesFromNotification:notification];
+
+        });
+        
 	}
 }
 
