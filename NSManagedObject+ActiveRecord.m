@@ -6,6 +6,7 @@
 #import <CoreData/CoreData.h>
 #import "NSManagedObject+ActiveRecord.h"
 #import "NSManagedObjectContext+ActiveRecord.h"
+#import "NSArrayHelper.h"
 
 
 static NSUInteger defaultBatchSize = kActiveRecordDefaultBatchSize;
@@ -678,5 +679,214 @@ static NSUInteger defaultBatchSize = kActiveRecordDefaultBatchSize;
 {
     return [self inContext:[NSManagedObjectContext contextForCurrentThread]];
 }
+
++ (NSArray*)objectsWithObjectIDs:(NSArray*)originalObjectIDs inContext:(NSManagedObjectContext *)otherContext{
+    
+    NSMutableArray* newObjects = [NSMutableArray arrayWithCapacity:[originalObjectIDs count]];
+    
+    [originalObjectIDs enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        
+        NSManagedObject* newObj = [otherContext objectWithID:(NSManagedObjectID*)obj];
+        
+        [newObjects addObject:newObj];
+        
+    }];
+    
+    return newObjects;
+}
++ (NSArray*)objectsWithObjectsFromOtherContext:(NSArray*)originalObjects inContext:(NSManagedObjectContext *)otherContext{
+    
+    NSMutableArray* newObjects = [NSMutableArray arrayWithCapacity:[originalObjects count]];
+    
+    [originalObjects enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        
+        NSManagedObjectID* anID = [(NSManagedObject*)obj objectID];
+        
+        NSManagedObject* newObj = [otherContext objectWithID:anID];
+        
+        [newObjects addObject:newObj];
+        
+    }];
+    
+    return newObjects;
+
+}
+
+
+#pragma mark Find By String Comparison
+
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute like:(NSString *)value{
+    
+    return [self findAllWhereAttribute:attribute like:value inContext:[NSManagedObjectContext defaultContext]];
+   
+}
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute like:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"%K like %@",attribute , value];
+    NSFetchRequest *request = [self createFetchRequestInContext:context];
+	[request setPredicate:predicate];
+	return [self executeFetchRequest:request inContext:context];
+    
+}
+
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute caseInsensitiveLike:(NSString *)value{
+    
+    return [self findAllWhereAttribute:attribute caseInsensitiveLike:value inContext:[NSManagedObjectContext defaultContext]];
+    
+}
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute caseInsensitiveLike:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"%K like[c] %@",attribute , value];
+    NSFetchRequest *request = [self createFetchRequestInContext:context];
+	[request setPredicate:predicate];
+	return [self executeFetchRequest:request inContext:context];
+
+}
+
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute contains:(NSString *)value{
+    
+    return [self findAllWhereAttribute:attribute contains:value inContext:[NSManagedObjectContext defaultContext]];
+}
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute contains:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"%K contains[c] %@",attribute , value];
+    NSFetchRequest *request = [self createFetchRequestInContext:context];
+	[request setPredicate:predicate];
+	return [self executeFetchRequest:request inContext:context];
+    
+}
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute isIn:(id)values{
+    
+    return [self findAllWhereAttribute:attribute isIn:values inContext:[NSManagedObjectContext defaultContext]];
+    
+}
+
++ (NSArray *)findAllWhereAttribute:(NSString *)attribute isIn:(id)values inContext:(NSManagedObjectContext*)context{
+    
+    if([values count] == 0)
+        return nil;
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"%K IN %@",attribute , values];    
+    NSFetchRequest *request = [self createFetchRequestInContext:context];
+	[request setPredicate:predicate];
+	return [self executeFetchRequest:request inContext:context];
+    
+    
+}
+
++ (id)findFirstWhere:(NSString *)key like:(NSString *)value{
+    
+    return [[self findAllWhereAttribute:key like:value] firstObjectSafe];
+}
+
++ (id)findFirstWhere:(NSString *)key like:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    return [[self findAllWhereAttribute:key like:value inContext:context] firstObjectSafe];
+}
+
++ (id)findFirstWhere:(NSString *)key caseInsensitiveLike:(NSString *)value{
+    
+    return [[self findAllWhereAttribute:key caseInsensitiveLike:value] firstObjectSafe];
+
+}
++ (id)findFirstWhere:(NSString *)key caseInsensitiveLike:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    return [[self findAllWhereAttribute:key caseInsensitiveLike:value inContext:context] firstObjectSafe];
+}
+
+
++ (id)findFirstWhere:(NSString *)key contains:(NSString *)value{
+    
+    return [[self findAllWhereAttribute:key contains:value] firstObjectSafe];
+
+}
+
++ (id)findFirstWhere:(NSString *)key contains:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    return [[self findAllWhereAttribute:key contains:value inContext:context] firstObjectSafe];
+    
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key equalToObject:(id )value{
+    
+    id obj = [self findFirstByAttribute:key withValue:value];
+    if(!obj){
+        
+        obj = [self createEntity];
+        [obj setValue:value forKey:key];
+    }
+    return obj;
+
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key equalToObject:(id )value inContext:(NSManagedObjectContext*)context{
+    
+    id obj = [self findFirstByAttribute:key withValue:value inContext:context];
+    if(!obj){
+        
+        obj = [self createInContext:context];
+        [obj setValue:value forKey:key];
+    }
+    return obj;
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key like:(NSString *)value{
+    
+    id obj = [self findFirstWhere:key like:value];
+    if(!obj){
+        
+        obj = [self createEntity];
+        [obj setValue:value forKey:key];
+
+    }
+    return obj;
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key like:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    id obj = [self findFirstWhere:key like:value inContext:context];
+    if(!obj){
+        
+        obj = [self createInContext:context];
+        [obj setValue:value forKey:key];
+        
+    }
+    return obj;
+
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key caseInsensitiveLike:(NSString *)value{
+    
+    id obj = [self findFirstWhere:key caseInsensitiveLike:value];
+    if(!obj){
+        
+        obj = [self createEntity];
+        [obj setValue:value forKey:key];
+        
+    }
+    return obj;
+}
+
++ (id)findOrCreateEntityWhereKey:(NSString *)key caseInsensitiveLike:(NSString *)value inContext:(NSManagedObjectContext*)context{
+    
+    id obj = [self findFirstWhere:key caseInsensitiveLike:value inContext:context];
+    if(!obj){
+        
+        obj = [self createInContext:context];
+        [obj setValue:value forKey:key];
+        
+    }
+    return obj;
+}
+
+
+
 
 @end
