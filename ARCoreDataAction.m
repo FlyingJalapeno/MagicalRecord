@@ -7,6 +7,7 @@
 //
 
 #import "ARCoreDataAction.h"
+#import "NSManagedObjectContext+ActiveRecord.h"
 
 static dispatch_queue_t coredata_background_save_queue;
 
@@ -52,7 +53,7 @@ void cleanup_save_queue()
 #endif
         
         [mainContext setMergePolicy:NSMergeByPropertyStoreTrumpMergePolicy];
-        [localContext setMergePolicy:NSOverwriteMergePolicy];
+        [localContext setMergePolicy:NSOverwriteMergePolicy]; //TODO: consider making this a merge by property
     }
     
     block(localContext);
